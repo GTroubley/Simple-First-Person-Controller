@@ -4,9 +4,11 @@ A simple first person controller using Unity's **new input system** & build-in C
 
 ## Getting Started
 
-The ready for use gameObject can be found inder the folder: ```GameObjects/...```.
+The ready for use gameObject prefab can be found inder the folder: ```GameObjects/...```.
 
 Input actions can be found at ```Input/PlayerInputControls```.
+
+Before using the prefab, make sure to create a "Player" layer and assign it to the controller prefab and it's child.
 
 ### Script Components
 

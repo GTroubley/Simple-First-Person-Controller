@@ -1,12 +1,34 @@
-# Simple-First-Person-Controller
-## A simple first person controller using Unity's **new input system** & build-in CharacterController. The controller can move, sprint, jump, handle slopes & stairs, full-no-limited air control, camera headbob and footsteps.
-Note: **This first person controller uses the _Unity's new input system_.**
+# Simple First Person Controller for Unity - FPController
 
-![1](https://user-images.githubusercontent.com/95410107/211865702-cb372800-1cb3-46e5-8b47-a0d6d54fabb9.png)
+A simple first person controller using Unity's **new input system** & build-in CharacterController. The controller can move, sprint, jump, handle slopes & stairs, full-no-limited air control, camera headbob and footsteps.
 
-Under the folder: ```GameObjects/...``` I have included the player gameobject with it's components and scripts, ready for use.
+## Getting Started
 
-In order to add camera shake use the static method Shake(duration,strength), example:
+The ready for use gameObject can be found inder the folder: ```GameObjects/...```.
+
+Input actions can be found at ```Input/PlayerInputControls```.
+
+### Script Components
+
+* FPInputManager: Provides input.
+* FPController: Is the main script responsible for the player movement, gravity, slope handling & camera rotation. 
+* FPJumping: This component enables jumping.
+* FPSprint: This component enables sprinting.
+* FPHeadbobbing: Can move the camera holder gameObject on Y-axis.
+* FPFootsteps: Responsible to play movement sounds.
+* CameraShake: Script attached to the camera gameObject, can shake the camera.
+
+## Notes
+
+* This first person controller uses the Unity's new input system.
+
+## Some Examples
+
+Example to add camera shake using the static method Shake(duration,strength):
+
 ```csharp
 CameraShake.Shake(0.5f, 0.15f);
 ```
+
+## Special Thanks
+This controller was inspired by [passivestar](https://www.youtube.com/@passivestar)

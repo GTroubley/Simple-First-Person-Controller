@@ -344,9 +344,9 @@ GameObject:
   - component: {fileID: 7787427698462517464}
   - component: {fileID: 8425700915552814015}
   m_Layer: 8
-  m_Name: FPController
+  m_Name: FPController-BuiltIn
   m_TagString: Untagged
-  m_Icon: {fileID: 0}
+  m_Icon: {fileID: -964228994112308473, guid: 0000000000000000d000000000000000, type: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
@@ -482,24 +482,4 @@ MonoBehaviour:
   _minRequiredSpeed: 3
   _walkStepInterval: 0.8
   _sprintStepInterval: 0.5
-  _sounds:
-  - {fileID: 8300000, guid: 282c7cd990f012d4eadafdefe9e69e81, type: 3}
-  - {fileID: 8300000, guid: 5ca683e82ecc56a4ea2f97a96f20eb15, type: 3}
-  - {fileID: 8300000, guid: 2200bd846de7e5849b5818b67490ad16, type: 3}
-  - {fileID: 8300000, guid: d132bb4896f960341b212c01cd05d37d, type: 3}
-  - {fileID: 8300000, guid: e450699c73d52bc44841eb6fe7e70b34, type: 3}
-  - {fileID: 8300000, guid: 81a0e7e40ef419c48baaa7c365a28252, type: 3}
-  - {fileID: 8300000, guid: db646ded531c9944890aa5bbfe7812bb, type: 3}
-  - {fileID: 8300000, guid: ca3f1562855182b44af1a00837ed635a, type: 3}
-  - {fileID: 8300000, guid: 39ae8869ff45efe4d942b5c9ed058ccc, type: 3}
-  - {fileID: 8300000, guid: c67c347294d05d347b7a96a07e1a2789, type: 3}
-  - {fileID: 8300000, guid: 7c1b1b7d17950554e99ecc14d9ce2b9c, type: 3}
-  - {fileID: 8300000, guid: c964da1fb596d3844a42045501d16bcf, type: 3}
-  - {fileID: 8300000, guid: 65ff14feada8563448ac1608c488b41a, type: 3}
-  - {fileID: 8300000, guid: 47159529b703cff40bba30f907723257, type: 3}
-  - {fileID: 8300000, guid: 694eab1b829a54b4ebb8885990b8db6f, type: 3}
-  - {fileID: 8300000, guid: 2b901deb1d211f84cb66142fe7a20d29, type: 3}
-  - {fileID: 8300000, guid: 9abe466f0d520af458faafdf7039e29f, type: 3}
-  - {fileID: 8300000, guid: 1914aaa5044203c458e332926d4005f2, type: 3}
-  - {fileID: 8300000, guid: c76bb23a594ac494dbf07b19c428b8f5, type: 3}
-  - {fileID: 8300000, guid: 8cae1532d5754b649a1537309b96583d, type: 3}
+  _sounds: []

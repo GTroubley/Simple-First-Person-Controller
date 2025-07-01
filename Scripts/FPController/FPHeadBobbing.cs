@@ -5,7 +5,7 @@ namespace FPController
     public class FPHeadBobbing : MonoBehaviour
     {
         [SerializeField, Range(0, 20f)] float _frequency = 15f;
-        [SerializeField, Range(0, 0.1f)] float _amplitude = 0.05f;
+        [SerializeField, Range(0, 0.1f)] float _amplitude = 0.04f;
         [SerializeField, Range(1, 2f)] float _sprintMultiplier = 1.3f;
 
         private FPController _player;

@@ -2,6 +2,7 @@ using UnityEngine;
 
 namespace FPController
 {
+    [RequireComponent(typeof(FPController))]
     public class FPFootsteps : MonoBehaviour
     {
         [SerializeField] private AudioSource _audioSource;
@@ -18,16 +19,15 @@ namespace FPController
 
         private void Update()
         {
-            // Play footsteps only if _playFootsteps is enabled
-            if (!_playFootsteps) return;
+            // Play footsteps only if _playFootsteps is enabled and has an AudioSource
+            if (!_playFootsteps || _audioSource == null || _player == null) return;
             // If audioSource is not already playing a sound and player is grounded and moves using input with a speed greater than the _minRequiredSpeed
             if (!_audioSource.isPlaying && _player.IsGrounded && _player.IsInputMoving && _player.Velocity.magnitude > _minRequiredSpeed)
             {
-                // And play a random sound from the list only if player is sprinting or not and the timer is greater than the correct required interval
-                if ((_player.IsSprinting && IsTimeToSprint(_sprintStepInterval)) || (!_player.IsSprinting && IsTimeToSprint(_walkStepInterval)))
+                float interval = _player.IsSprinting ? _sprintStepInterval : _walkStepInterval;
+                if (IsTimeToSprint(interval) && _sounds.Length > 0)
                 {
-                    if (_sounds.Length == 0) return;
-                    _audioSource.PlayOneShot(_sounds[UnityEngine.Random.Range(0, _sounds.Length)]);
+                    _audioSource.PlayOneShot(_sounds[Random.Range(0, _sounds.Length)]);
                     _lastStepTimer = Time.time;
                 }
             }

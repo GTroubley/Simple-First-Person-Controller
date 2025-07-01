@@ -26,23 +26,23 @@ public class CameraShake : MonoBehaviour
 
     private IEnumerator ShakeCoroutine(float duration, float strengthMultiplier)
     {
-        // Cache the position
+        // Store the original local position
         Vector3 originalPos = transform.localPosition;
         float elapsed = 0f;
+        IsShaking = true;
 
+        // Loop until the total shake duration has passed
         while (elapsed < duration)
         {
-            IsShaking = true;
-            // Get the strength value from curve
+            // Calculate shake offset based on curve intensity over time and apply it to the position and then update elapsed time
             float strengthOverTime = _curve.Evaluate(elapsed / duration);
-            // Calculate a random position based on the start position, a random point in a unit sphere and the strength
             transform.localPosition = originalPos + Random.insideUnitSphere * strengthOverTime * strengthMultiplier;
             elapsed += Time.deltaTime;
             yield return null;
-            IsShaking = false;
         }
 
         transform.localPosition = originalPos;
+        IsShaking = false;
     }
 
     [ContextMenu("Curve Setup")]

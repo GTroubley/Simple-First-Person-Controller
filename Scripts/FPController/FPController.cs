@@ -22,6 +22,13 @@ namespace FPController
 
         [Tooltip("This field is used to calculate how fast the player is going to slide on a slope [Infinity,0]")]
         [SerializeField][Range(float.NegativeInfinity, 0)] private float _slopeSlideMultiplier = -4f;
+        
+        [Tooltip("Minimum slide speed while sliding on slopes")]
+        [SerializeField] private float _minSlideSpeed = 0.01f;
+
+        [Tooltip("Maximum slide speed while sliding on slopes")]
+        [SerializeField] private float _maxSlideSpeed = 4f;
+
 
         [Header("Gravity")] // Gravity Fields
 
@@ -88,6 +95,7 @@ namespace FPController
         private bool _isOnSlope;
         private bool _isSliding;
         private bool _didSphereCast;
+        private RaycastHit _slopeHit;
         #endregion
 
         #region MonoBehaviour Methods
@@ -104,9 +112,10 @@ namespace FPController
 
         private void Update()
         {
-            UpdateGround();
-            UpdateGravity();
-            UpdateMovement();
+            SlopeCheck();           // Slope Check and logic
+            UpdateGround();         // Ground Check and logic
+            UpdateGravity();        // Gravity calculations
+            UpdateMovement();       // Movement calculations
         }
 
         private void LateUpdate()
@@ -116,32 +125,35 @@ namespace FPController
         #endregion
 
         #region Private Methods
+
+        /// <summary>
+        /// Updates player's look direction
+        /// - Applies horizontal rotation to the player.
+        /// - Applies vertical rotation to the camera holder and clamps it's Y-axis rotation
+        /// </summary>
         private void UpdateCamera()
         {
-            // Get the mouse delta input
-            _lookDirection += new Vector2(_input.LookInput.x * _mouseSensitivity, _input.LookInput.y * _mouseSensitivity);
-
-            // Clamps the rotation of the Y-AXIS (vertical)
-            _lookDirection.y = Mathf.Clamp(_lookDirection.y, -_maxCameraY, _maxCameraY);
-
-            // Applies the rotations to the camera for vertical, and to the player for horizontal
-            _cameraHolderTransform.localRotation = Quaternion.Euler(-_lookDirection.y, 0, 0);
-            transform.localRotation = Quaternion.Euler(0, _lookDirection.x, 0);
+            _lookDirection += new Vector2(_input.LookInput.x * _mouseSensitivity, _input.LookInput.y * _mouseSensitivity);  // Get the mouse delta input
+            _lookDirection.y = Mathf.Clamp(_lookDirection.y, -_maxCameraY, _maxCameraY);                                    // Clamps vertical rotation to prevent excesive up/down rotation
+            _cameraHolderTransform.localRotation = Quaternion.Euler(-_lookDirection.y, 0, 0);                               // Applies vertical(Y) rotation to camera holder 
+            transform.localRotation = Quaternion.Euler(0, _lookDirection.x, 0);                                             // Applies horizontal(X) rotation to player
         }
 
+        /// <summary>
+        /// Updates the player's movement
+        /// - First invokes OnBeforeMove for pre-movement logic (Sprinting & Jumping)
+        /// </summary>
         private void UpdateMovement()
         {
             _movementSpeedMultiplier = 1f;
-            // Invoke methods before the actual movement calculations if there are any
-            OnBeforeMove?.Invoke();
+            OnBeforeMove?.Invoke();             // Invoke methods before the actual movement calculations if there are any
 
-            // Calculate & normalize the move direction from the input
-            if (_controller.isGrounded)
+
+            if (_controller.isGrounded)         // When player is grounded, calculate & normalize the move direction from the input
             {
                 _moveDirection = transform.forward * _input.MovementInput.y + transform.right * _input.MovementInput.x;
                 _moveDirection.Normalize();
                 _moveDirection *= _movementSpeed * _movementSpeedMultiplier;
-
                 if (!_isJumping)
                     _lastMoveDirection = _moveDirection;
             }
@@ -157,32 +169,65 @@ namespace FPController
                 // 0: no mid air control , 1: full mid air control
                 _moveDirection.x = Mathf.Lerp(_lastMoveDirection.x, midAirDirection.x, _midAirControlMultiplier);
                 _moveDirection.z = Mathf.Lerp(_lastMoveDirection.z, midAirDirection.z, _midAirControlMultiplier);
-
             }
 
-            // Smooth the movement speed
-            var smoothMovementFactor = _acceleration * Time.deltaTime;
-            Velocity.x = Mathf.Lerp(Velocity.x, _moveDirection.x, smoothMovementFactor);
-            Velocity.z = Mathf.Lerp(Velocity.z, _moveDirection.z, smoothMovementFactor);
+            // If player is not sliding, then smooth the movement speed before applying it
+            if (!_isSliding)
+            {
+                float smoothMovementFactor = _acceleration * Time.deltaTime;
+                Velocity.x = Mathf.Lerp(Velocity.x, _moveDirection.x, smoothMovementFactor);
+                Velocity.z = Mathf.Lerp(Velocity.z, _moveDirection.z, smoothMovementFactor);
+            }
 
             //Apply the move direction
             _controller.Move(Velocity * Time.deltaTime);
         }
 
+        /// <summary>
+        /// Applies vertical gravity force to the player based on current state:
+        /// - Player is on slope (also applies slope force along with gravity)
+        /// - Player is just grounded
+        /// - player is mid-air
+        /// </summary>
         private void UpdateGravity()
         {
-            var gravity = (Physics.gravity * _gravityMultiplier * _mass) * Time.deltaTime;
-            if (_isOnSlope)
-                Velocity.y = _slopeSlideMultiplier + gravity.y;
-            else Velocity.y = _controller.isGrounded ? -1f : Velocity.y + gravity.y;
+            float gravityForce = Physics.gravity.y * _gravityMultiplier * _mass;
+            if (_isOnSlope && IsGrounded)
+            {
+                Vector3 slopeForce = Vector3.Cross(Vector3.Cross(Vector3.up, _slopeHit.normal), _slopeHit.normal);
+                Velocity += slopeForce * Mathf.Abs(_slopeSlideMultiplier);
+                Velocity.y += gravityForce * Time.deltaTime;
+                if (_isSliding)
+                    ClampSlopeSlidingSpeed();
+            }
+            else if (IsGrounded)
+                Velocity.y = -1f;
+            else
+                Velocity.y += gravityForce * Time.deltaTime;
         }
 
+        /// <summary>
+        /// Clamps horizontal velocity when player is sliding on a slope
+        /// </summary>
+        private void ClampSlopeSlidingSpeed()
+        {
+            Vector3 horizontalVelocity = new Vector3(Velocity.x, 0, Velocity.z);
+            float speed = horizontalVelocity.magnitude;
+            if (speed > _minSlideSpeed)
+            {
+                float clampedSpeed = Mathf.Clamp(speed, _minSlideSpeed, _maxSlideSpeed);
+                horizontalVelocity = horizontalVelocity.normalized * clampedSpeed;
+                Velocity.x = horizontalVelocity.x;
+                Velocity.z = horizontalVelocity.z;
+            }
+        }
+
+        /// <summary>
+        /// Responsible for checking if player's grounded state has changed since last frame.
+        /// If it has, then invokes OnGroundStateChange event and updates _wasGrounded to reflect the current grounded state.
+        /// </summary>
         private void UpdateGround()
         {
-            // Check if player is on slope and slide if so
-            SlopeCheck();
-
-            // _wasGrounded will update only when IsGrounded changes value, to capture the time that the player got last grounded
             if (_wasGrounded != IsGrounded)
             {
                 OnGroundStateChange?.Invoke(IsGrounded);
@@ -190,47 +235,53 @@ namespace FPController
             }
         }
 
-        // This method will either use a Raycast or a SphereCast,
-        // The Raycast will check the ground beneath the player but if player is near an edge and can't get a hit then uses
-        // The Spherecast which will manage to get a hit, but once player starts sliding from the Spherecast will not go back to Raycast until they stop.
-        // The reason that Raycast goes before the Spherecast are the steps of the stairs. I couldn't figure a way to handle steps with Spherecast.
+        /// <summary>
+        /// Checks if player is standing on a slope.
+        /// First uses a Raycast directly downward to detect ground. But if player is near an edge and Raycast fails, then uses a SphereCast.
+        /// SphereCast manages to detect that edge (stairs commonly). If player starts sliding and SphereCast was used that frame, it will not go back to Raycast until they stop
+        /// 
+        /// !!! Need to check this later !!!
+        /// There might be an issue with stairs
+        /// </summary>
         private void SlopeCheck()
         {
             if (_controller.isGrounded)
             {
                 // The cast origin will be on character's feet
                 var castOrigin = transform.position - new Vector3(0, _controller.height / 2 - _controller.radius, 0);
-                // If didn't slide using Spherecast and gets a hit using Raycast, then invoke TryApplySlopeForce
-                if (!_didSphereCast && Physics.Raycast(transform.position, Vector3.down, out var hit, 1.5f, ~LayerMask.GetMask("Player"), QueryTriggerInteraction.Ignore))
-                {
-                    TryApplySlopeForce(hit);
-                }
+                // If didn't slide using SphereCast and Raycast finds a hit then, invoke TryApplySlopeForce
+                if (!_didSphereCast && Physics.Raycast(castOrigin, Vector3.down, out var hit, 1.5f, ~LayerMask.GetMask("Player"), QueryTriggerInteraction.Ignore))
+                    SlopeHitPointCheck(hit);
                 // Else use a Spherecast to find a hit
                 else if (Physics.SphereCast(castOrigin, _controller.radius - 0.01f, Vector3.down, out hit, 0.05f, ~LayerMask.GetMask("Player"), QueryTriggerInteraction.Ignore))
                 {
-                    TryApplySlopeForce(hit);
-                    if (_isSliding)
-                        _didSphereCast = true;
+                    _didSphereCast = true;
+                    SlopeHitPointCheck(hit);
+                }
+                else if (IsGrounded && IsSliding) {
+                    _didSphereCast = false;
+                    SlopeHitPointCheck(_slopeHit);
                 }
             }
         }
 
-        // This function will find the angle between the hit and the normal, and if it's a steep slope will start sliding
-        private void TryApplySlopeForce(RaycastHit hit)
+        /// <summary>
+        /// Responsible for checking the angle of the hit point and adjust logic
+        /// </summary>
+        private void SlopeHitPointCheck(RaycastHit hit)
         {
+            _slopeHit = hit;
             var angle = Vector3.Angle(hit.normal, Vector3.up);
-            if (angle > _controller.slopeLimit)
+            if (angle > _controller.slopeLimit)     // If angle exceeds the limit (hit is a steep slope)
             {
-                Velocity.x += (1f - hit.normal.y) * hit.normal.x * (1f - _slopeSlideMultiplier);
-                Velocity.z += (1f - hit.normal.y) * hit.normal.z * (1f - _slopeSlideMultiplier);
                 _isOnSlope = true;
                 _isSliding = true;
             }
             else
             {
-                _isOnSlope = false;
-                _isSliding = false;
-                _didSphereCast = false;
+                _isOnSlope = false;         // is no longer on slope
+                _isSliding = false;         // is not sliding
+                _didSphereCast = false;     // do not use SphereCast on next frame
             }
         }
         #endregion

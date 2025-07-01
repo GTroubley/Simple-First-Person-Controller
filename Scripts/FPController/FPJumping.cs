@@ -42,19 +42,29 @@ namespace FPController
             _player.OnGroundStateChange -= OnGroundStateChange;
         }
 
+        /// <summary>
+        /// Resets _lastGroundedTime
+        /// This method is invoked at OnGroundStateChange in UpdateGround() of the FPController.cs
+        /// </summary>
+        /// <param name="isGrounded"></param>
         private void OnGroundStateChange(bool isGrounded)
         {
             if (!isGrounded) _lastGroundedTime = Time.time;
         }
 
-        // This method is invoked when the jump button is pressed
+        /// <summary>
+        /// This method is invoked at FPInputManager in OnJump() of the FPInputManager.cs
+        /// </summary>
         private void OnJump()
         {
             _tryingToJump = true;
             _lastJumpPressTime = Time.time;
         }
 
-        // This method is invoked at OnBeforeMove in UpdateMovement() of the FPController.cs 
+        /// <summary>
+        /// Handles jump logic
+        /// This method is invoked at OnBeforeMove in UpdateMovement() of the FPController.cs
+        /// </summary>
         private void PrepareForJump()
         {
             // If player is not pressing jump and not jumping already or is sliding

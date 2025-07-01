@@ -21,15 +21,17 @@ namespace FPController
 
         private void OnDisable() => _player.OnBeforeMove -= PrepareForSprint;
 
-        // This method is invoked at OnBeforeMove in UpdateMovement() of the FPController.cs 
+        /// <summary>
+        /// Responsible for checking if player is moving forward, if so then will apply the sprinting multiplier.
+        /// Sprinting does not work when moving backwards!
+        /// This method is invoked at OnBeforeMove in UpdateMovement() of the FPController.cs 
+        /// </summary>
         private void PrepareForSprint()
         {
-            // If the sprint key is pressed and player is not jumping, checks if player is moving forward and will apply the sprinting multiplier 
-            // only if player moves forward not backwards or side walking
             if (!_input.SprintInput || _player.IsJumping) return;
-
-            var forwardMovementFactor = Mathf.Clamp01(Vector3.Dot(_player.transform.forward, _player.Velocity.normalized));
-            var multiplier = Mathf.Lerp(1f, _speedMultiplier, forwardMovementFactor);
+            // Compute how much the player is moving in the forward direction (1 = forward, 0 = sideways, -1 = backward)
+            float forwardMovementFactor = Mathf.Clamp01(Vector3.Dot(_player.transform.forward, _player.Velocity.normalized));
+            float multiplier = Mathf.Lerp(1f, _speedMultiplier, forwardMovementFactor);
             _player.MovementSpeedMultiplier *= multiplier;
         }
     }

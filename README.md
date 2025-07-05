@@ -1,36 +1,96 @@
-# Simple First Person Controller for Unity - FPController
+# 🎮 Simple First Person Controller for Unity - **FPController**
 
-A simple first person controller using Unity's **new input system** & build-in CharacterController. The controller can move, sprint, jump, handle slopes & stairs, full-no-limited air control, camera headbob and footsteps.
+A lightweight, modular first-person controller built using Unity's **New Input System** and the built-in `CharacterController` component. Supports sprinting, jumping, slope and stair navigation, full air control, head bobbing, and dynamic footstep audio.
 
-## Getting Started
+---
 
-The ready for use gameObject prefabs can be found inder the folder: ```GameObjects/...``` (FPController-Builtin & FPController-URP).
+## 🧰 Features
 
-Input actions can be found at ```Input/PlayerInputControls```.
+- ✅ Walk, sprint, jump
+- ✅ Slope and stair navigation
+- ✅ Full air control
+- ✅ Camera headbobbing
+- ✅ Footstep sounds
+- ✅ Camera shake support
+- ✅ Modular architecture (plug & play)
 
-Before using the prefab, make sure to create a "Player" layer and assign it to the controller prefab and it's children.
+---
 
-### Script Components
+## 📦 Requirements
 
-* FPInputManager: Provides input.
-* FPController: Is the main script responsible for the player movement, gravity, slope handling & camera rotation. 
-* FPJumping: This component enables jumping.
-* FPSprint: This component enables sprinting.
-* FPHeadbobbing: Can move the camera holder gameObject on Y-axis.
-* FPFootsteps: Responsible to play movement sounds.
-* CameraShake: Script attached to the camera gameObject, can shake the camera.
+- **Unity Version:** works up to Unity 6.1
+- **Packages:**
+  - Input System (`com.unity.inputsystem`)
+  - SRP & URP support
 
-## Notes
+---
 
-* This first person controller uses the Unity's new input system.
+## 🚀 Getting Started
 
-## Some Examples
+### 1. Clone or Download
 
-Example to add camera shake using the static method Shake(duration,strength):
+Download or clone this repository into your Unity project:
+
+```bash
+https://github.com/GTroubley/Simple-First-Person-Controller.git
+```
+
+### 2. Create Required Layer‼️
+
+Create a layer named **Player** and assign it to the controller prefab and all its child objects.
+
+### 3. Add Prefab to Scene
+
+Use one of the prefabs from the GameObjects folder based on your render pipeline:
+
+```
+GameObjects/
+```
+
+- `FPController-Builtin`
+- `FPController-URP`
+
+### 4. Assign Input Actions
+
+Input actions can be found at:
+
+```
+Input/PlayerInputControls
+```
+
+---
+
+## 🧩 Script Components
+
+| Script            | Description                                                                 |
+|-------------------|-----------------------------------------------------------------------------|
+| `FPInputManager`  | Handles all player input using Unity's New Input System.                    |
+| `FPController`    | Core movement logic: walking, gravity, slopes, stairs, and camera rotation. |
+| `FPJumping`       | Enables jumping behavior.                                                   |
+| `FPSprint`        | Enables sprinting functionality.                                            |
+| `FPHeadbobbing`   | Adds vertical camera motion while walking/running.                          |
+| `FPFootsteps`     | Plays footstep audio based on movement.                                     |
+| `CameraShake`     | Triggers screen shake on the camera object.                                 |
+
+---
+
+## 💡 Some Examples
+
+Shake the camera using:
 
 ```csharp
 CameraShake.Shake(0.5f, 0.15f);
 ```
 
-## Special Thanks
-This controller was inspired by [passivestar](https://www.youtube.com/@passivestar)
+---
+
+## 🙏 Special Thanks
+
+This controller was inspired by [passivestar](https://www.youtube.com/@passivestar).
+
+---
+
+## 🚧 Development Notice
+
+The controller is still under active development, alongside my next game project.  
+If you use this controller in your own game, please credit me. 😊

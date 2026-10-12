@@ -29,8 +29,9 @@ namespace FPController
         private void PrepareForSprint()
         {
             if (!_input.SprintInput || _player.IsJumping) return;
-            // Compute how much the player is moving in the forward direction (1 = forward, 0 = sideways, -1 = backward)
-            float forwardMovementFactor = Mathf.Clamp01(Vector3.Dot(_player.transform.forward, _player.Velocity.normalized));
+            // Compute how much the player wants to move in the forward direction (1 = forward, 0 = sideways, -1 = backward)
+            // Uses the input instead of the velocity, which also contains the vertical velocity and is near zero when starting to move
+            float forwardMovementFactor = Mathf.Clamp01(_input.MovementInput.normalized.y);
             float multiplier = Mathf.Lerp(1f, _speedMultiplier, forwardMovementFactor);
             _player.MovementSpeedMultiplier *= multiplier;
         }

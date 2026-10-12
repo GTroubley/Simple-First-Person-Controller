@@ -398,7 +398,7 @@ MonoBehaviour:
   _movementSpeed: 4
   _acceleration: 15
   _midAirControlMultiplier: 0.4
-  _slopeSlideMultiplier: -4
+  _slideAcceleration: 30
   _mass: 1
   _gravityMultiplier: 1
   _cameraHolderTransform: {fileID: 5453493278238917420}
@@ -430,7 +430,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _jumpHeight: 1
-  _jumpBufferTime: 0.05
+  _jumpBufferTime: 0.15
   _jumpGroundGraceTime: 0.2
 --- !u!114 &7787427698462517456
 MonoBehaviour:

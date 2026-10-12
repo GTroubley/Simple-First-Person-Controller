@@ -11,23 +11,49 @@ public class CameraShake : MonoBehaviour
 
     public bool IsShaking;
 
-    // Setup the curve, remove to change to another curve
-    private void OnValidate() => CurveSetup();
+    private Vector3 _originalPos;
+    private Coroutine _shakeCoroutine;
+
+    // Setup the default curve only when there is none, so a curve edited in the inspector is kept
+    private void OnValidate()
+    {
+        if (_curve == null || _curve.length == 0)
+            CurveSetup();
+    }
 
     void Awake()
     {
         if (Instance == null)
             Instance = this;
         else
-            Destroy(gameObject);
+            Destroy(this);      // Remove only the duplicate component, not the camera it's attached to
+
+        // Store the original local position once, so overlapping shakes cant store an already shaken position
+        _originalPos = transform.localPosition;
     }
 
-    public static void Shake(float duration, float strengthMultiplier) => Instance.StartCoroutine(Instance.ShakeCoroutine(duration, strengthMultiplier));
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
+    public static void Shake(float duration, float strengthMultiplier)
+    {
+        if (Instance == null)
+        {
+            Debug.LogWarning("CameraShake: there is no CameraShake in the scene");
+            return;
+        }
+
+        // If a shake is already running, stop it and start the new one from the original position
+        if (Instance._shakeCoroutine != null)
+            Instance.StopCoroutine(Instance._shakeCoroutine);
+        Instance._shakeCoroutine = Instance.StartCoroutine(Instance.ShakeCoroutine(duration, strengthMultiplier));
+    }
 
     private IEnumerator ShakeCoroutine(float duration, float strengthMultiplier)
     {
-        // Store the original local position
-        Vector3 originalPos = transform.localPosition;
         float elapsed = 0f;
         IsShaking = true;
 
@@ -36,13 +62,14 @@ public class CameraShake : MonoBehaviour
         {
             // Calculate shake offset based on curve intensity over time and apply it to the position and then update elapsed time
             float strengthOverTime = _curve.Evaluate(elapsed / duration);
-            transform.localPosition = originalPos + Random.insideUnitSphere * strengthOverTime * strengthMultiplier;
+            transform.localPosition = _originalPos + Random.insideUnitSphere * strengthOverTime * strengthMultiplier;
             elapsed += Time.deltaTime;
             yield return null;
         }
 
-        transform.localPosition = originalPos;
+        transform.localPosition = _originalPos;
         IsShaking = false;
+        _shakeCoroutine = null;
     }
 
     [ContextMenu("Curve Setup")]
@@ -61,6 +88,7 @@ public class CameraShake : MonoBehaviour
         // Adjusting the of the curve for the second keyframe
         keyframes[1].inTangent = -0.01f;
         keyframes[1].inWeight = -0.3f;
+        _curve ??= new AnimationCurve();
         _curve.keys = keyframes;
     }
 

@@ -10,8 +10,8 @@ namespace FPController
         [Tooltip("Desired jump height")]
         [SerializeField] float _jumpHeight = 1f;
 
-        [Tooltip("Jump buffer time to forgive bad timing jump attempts")]
-        [SerializeField][Range(0, 0.2f)] float _jumpBufferTime = 0.05f;
+        [Tooltip("Jump buffer time to forgive bad timing jump attempts. A jump pressed this many seconds before landing still happens")]
+        [SerializeField][Range(0, 0.2f)] float _jumpBufferTime = 0.15f;
 
         [Tooltip("Jump grace time to allow jumping even after not being grounded")]
         [SerializeField] float _jumpGroundGraceTime = 0.2f;
@@ -19,7 +19,7 @@ namespace FPController
         private FPController _player;
         private FPInputManager _input;
         private bool _tryingToJump;
-        private float _lastJumpPressTime;
+        private float _lastJumpPressTime = float.NegativeInfinity;     // Not 0, otherwise the buffer would trigger a jump right at the start
         private float _lastGroundedTime;
 
         private void Awake()
@@ -67,9 +67,9 @@ namespace FPController
         /// </summary>
         private void PrepareForJump()
         {
-            // If player is not pressing jump and not jumping already or is sliding
-            // then don't proceed with jump preparation calculations
-            if ((!_input.JumpInput && !_player.IsJumping) || _player.IsSliding) return;
+            // If player is sliding then don't proceed with jump preparation calculations
+            // (doesn't require jump to be held, so a jump tapped just before landing can still happen through the jump buffer)
+            if (_player.IsSliding) return;
 
             // Resets IsJumping if player is grounded
             if (_player.IsGrounded) _player.IsJumping = false;
@@ -84,12 +84,13 @@ namespace FPController
             bool isOrWasGrounded = _player.IsGrounded || wasGrounded;
 
             // If player isn't on a slope and not already jumping and is or was grounded and trying to jump
-            // Adds to his vertical velocity to perform the jump
+            // Sets his vertical velocity to perform the jump (set, not add, so a coyote time jump while already falling is not weaker)
             if (!_player.IsOnSlope && !_player.IsJumping && isOrWasTryingToJump && isOrWasGrounded)
             {
-                _player.Velocity.y += Mathf.Sqrt(-2 * Physics.gravity.y * _player.PlayerMass * _player.GravityMultiplier * _jumpHeight);
+                _player.Velocity.y = Mathf.Sqrt(-2 * Physics.gravity.y * _player.PlayerMass * _player.GravityMultiplier * _jumpHeight);
                 _player.IsJumping = true;
                 _player.MovementSpeedMultiplier = 0f;
+                _lastJumpPressTime = float.NegativeInfinity;      // Consume the buffered press so it can't trigger a second jump
             }
             _tryingToJump = false;
         }

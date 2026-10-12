@@ -9,45 +9,44 @@ namespace FPController
         #region Inspector Serialized Fields
         [Header("Movement")] // Movement Fields
 
-        [Tooltip("Player's walking speed value")]
-        [SerializeField] private float _movementSpeed = 4f;
+        [Tooltip("Walking speed in meters per second")]
+        [SerializeField][Range(0, 20)] private float _movementSpeed = 4f;
 
-        [Tooltip("Player's movement acceleration")]
-        [SerializeField] private float _acceleration = 15f;
+        [Tooltip("How quickly the player reaches walking speed and stops. Higher = snappier, lower = more slippery")]
+        [SerializeField][Range(1, 50)] private float _acceleration = 15f;
 
-        [Tooltip("Percentage of player's mid-air movement control [0,1]")]
+        [Tooltip("How much the player can steer while in the air. 0 = no control, 1 = full control")]
         [SerializeField][Range(0, 1)] private float _midAirControlMultiplier = 0.4f;
 
-        [Header("Slopes")]
+        [Header("Slopes")] // Slope Fields, slopes steeper than the CharacterController's Slope Limit make the player slide
 
-        [Tooltip("This field is used to calculate how fast the player is going to slide on a slope [Infinity,0]")]
-        [SerializeField][Range(float.NegativeInfinity, 0)] private float _slopeSlideMultiplier = -4f;
-        
-        [Tooltip("Minimum slide speed while sliding on slopes")]
-        [SerializeField] private float _minSlideSpeed = 0.01f;
+        [Tooltip("How fast sliding speeds up on steep slopes, in meters per second squared. Steeper slopes speed up faster")]
+        [SerializeField][Range(0, 100)] private float _slideAcceleration = 30f;
 
-        [Tooltip("Maximum slide speed while sliding on slopes")]
-        [SerializeField] private float _maxSlideSpeed = 4f;
+        [Tooltip("Top speed while sliding down steep slopes, in meters per second")]
+        [SerializeField][Range(0, 20)] private float _maxSlideSpeed = 4f;
 
+        [Tooltip("How far down the player is pulled to stay on the ground when walking down slopes and steps, in meters. 0 = off")]
+        [SerializeField][Range(0, 1)] private float _groundSnapDistance = 0.3f;
 
         [Header("Gravity")] // Gravity Fields
 
-        [Tooltip("Player's mass")]
-        [SerializeField] private float _mass = 1f;
+        [Tooltip("Player's mass. Multiplies gravity together with the Gravity Multiplier (heavier = falls faster, jumps keep the same height)")]
+        [SerializeField][Range(0.1f, 5)] private float _mass = 1f;
 
-        [Tooltip("Gravity multiplier")]
-        [SerializeField] private float _gravityMultiplier = 1f;
+        [Tooltip("1 = normal gravity (9.81 m/s²), 2 = twice as strong")]
+        [SerializeField][Range(0, 5)] private float _gravityMultiplier = 1f;
 
         [Header("Camera")] // Camera fields
 
         [Tooltip("Reference to the camera holder game object")]
         [SerializeField] private Transform _cameraHolderTransform;
 
-        [Tooltip("Mouse sensitivity")]
-        [SerializeField] private float _mouseSensitivity = 0.05f;
+        [Tooltip("Mouse sensitivity, degrees turned per pixel of mouse movement")]
+        [SerializeField][Range(0.01f, 0.5f)] private float _mouseSensitivity = 0.05f;
 
-        [Tooltip("Will clamp the rotation of Y axis on this value")]
-        [SerializeField] private float _maxCameraY = 90f;
+        [Tooltip("How far the camera can look up and down, in degrees")]
+        [SerializeField][Range(0, 90)] private float _maxCameraY = 90f;
         #endregion
 
         #region Events
@@ -68,7 +67,7 @@ namespace FPController
             get { return _isJumping; }
             set { _isJumping = value; }
         }
-        public bool IsSprinting => _controller.isGrounded && _input.SprintInput;
+        public bool IsSprinting => _controller.isGrounded && _input.SprintInput && IsInputMoving && _input.MovementInput.y > 0;
         public bool IsSliding
         {
             get { return _isSliding; }
@@ -116,6 +115,7 @@ namespace FPController
             UpdateGround();         // Ground Check and logic
             UpdateGravity();        // Gravity calculations
             UpdateMovement();       // Movement calculations
+            CeilingCheck();         // Ceiling Check and logic
         }
 
         private void LateUpdate()
@@ -145,6 +145,7 @@ namespace FPController
         /// </summary>
         private void UpdateMovement()
         {
+            bool wasGroundedBeforeMove = _controller.isGrounded;
             _movementSpeedMultiplier = 1f;
             OnBeforeMove?.Invoke();             // Invoke methods before the actual movement calculations if there are any
 
@@ -172,15 +173,36 @@ namespace FPController
             }
 
             // If player is not sliding, then smooth the movement speed before applying it
+            // Exponential smoothing keeps the acceleration the same on any frame rate and the factor always within [0,1]
             if (!_isSliding)
             {
-                float smoothMovementFactor = _acceleration * Time.deltaTime;
+                float smoothMovementFactor = 1f - Mathf.Exp(-_acceleration * Time.deltaTime);
                 Velocity.x = Mathf.Lerp(Velocity.x, _moveDirection.x, smoothMovementFactor);
                 Velocity.z = Mathf.Lerp(Velocity.z, _moveDirection.z, smoothMovementFactor);
             }
 
             //Apply the move direction
             _controller.Move(Velocity * Time.deltaTime);
+
+            // If player was grounded before the move but not anymore, try to keep him on the ground
+            if (wasGroundedBeforeMove)
+                SnapToGround();
+        }
+
+        /// <summary>
+        /// Keeps the player on the ground when walking down slopes and steps.
+        /// Without this, the grounded downward velocity (-1) is slower than walking down a slope, so the player keeps leaving the ground.
+        /// If player just left the ground without jumping or sliding, and there is walkable ground within _groundSnapDistance below him, then moves him down onto it.
+        /// </summary>
+        private void SnapToGround()
+        {
+            if (_controller.isGrounded || _isJumping || _isSliding || Velocity.y > 0) return;
+
+            // The cast origin will be on character's feet
+            var castOrigin = transform.position - new Vector3(0, _controller.height / 2 - _controller.radius, 0);
+            if (Physics.SphereCast(castOrigin, _controller.radius - 0.01f, Vector3.down, out var hit, _groundSnapDistance, ~LayerMask.GetMask("Player"), QueryTriggerInteraction.Ignore)
+                && Vector3.Angle(hit.normal, Vector3.up) <= _controller.slopeLimit)
+                _controller.Move(Vector3.down * hit.distance);      // CharacterController stops on the ground, so it can't go through it
         }
 
         /// <summary>
@@ -195,7 +217,8 @@ namespace FPController
             if (_isOnSlope && IsGrounded)
             {
                 Vector3 slopeForce = Vector3.Cross(Vector3.Cross(Vector3.up, _slopeHit.normal), _slopeHit.normal);
-                Velocity += slopeForce * Mathf.Abs(_slopeSlideMultiplier);
+                RemoveUpSlopeVelocity(slopeForce);
+                Velocity += slopeForce * _slideAcceleration * Time.deltaTime;
                 Velocity.y += gravityForce * Time.deltaTime;
                 if (_isSliding)
                     ClampSlopeSlidingSpeed();
@@ -207,19 +230,45 @@ namespace FPController
         }
 
         /// <summary>
-        /// Clamps horizontal velocity when player is sliding on a slope
+        /// Removes the horizontal velocity that is going up a steep slope.
+        /// Player can't climb a steep slope, so without this the speed he had before stepping on it would keep pushing him into the slope
+        /// </summary>
+        private void RemoveUpSlopeVelocity(Vector3 slopeForce)
+        {
+            Vector3 slideDirection = new Vector3(slopeForce.x, 0, slopeForce.z).normalized;     // Horizontal direction going down the slope
+            float slideDirectionSpeed = Vector3.Dot(new Vector3(Velocity.x, 0, Velocity.z), slideDirection);
+            if (slideDirectionSpeed < 0)
+            {
+                Velocity.x -= slideDirection.x * slideDirectionSpeed;
+                Velocity.z -= slideDirection.z * slideDirectionSpeed;
+            }
+        }
+
+        /// <summary>
+        /// Clamps velocity when player is sliding on a slope
+        /// - Horizontal speed is clamped to _maxSlideSpeed
+        /// - Vertical speed is clamped to the speed needed to follow the slope at _maxSlideSpeed,
+        ///   so it doesn't keep building up the longer the player slides
         /// </summary>
         private void ClampSlopeSlidingSpeed()
         {
-            Vector3 horizontalVelocity = new Vector3(Velocity.x, 0, Velocity.z);
-            float speed = horizontalVelocity.magnitude;
-            if (speed > _minSlideSpeed)
-            {
-                float clampedSpeed = Mathf.Clamp(speed, _minSlideSpeed, _maxSlideSpeed);
-                horizontalVelocity = horizontalVelocity.normalized * clampedSpeed;
-                Velocity.x = horizontalVelocity.x;
-                Velocity.z = horizontalVelocity.z;
-            }
+            Vector3 horizontalVelocity = Vector3.ClampMagnitude(new Vector3(Velocity.x, 0, Velocity.z), _maxSlideSpeed);
+            Velocity.x = horizontalVelocity.x;
+            Velocity.z = horizontalVelocity.z;
+
+            float slopeAngle = Vector3.Angle(_slopeHit.normal, Vector3.up) * Mathf.Deg2Rad;
+            float maxFallSpeed = _maxSlideSpeed * Mathf.Tan(slopeAngle) + 1f;      // +1 keeps the player pressed on the slope, same as the grounded -1
+            Velocity.y = Mathf.Max(Velocity.y, -maxFallSpeed);
+        }
+
+        /// <summary>
+        /// Checks if player hit a ceiling during the last move.
+        /// If player is still moving upwards, then cancels the upward velocity so he starts falling immediately instead of sticking to the ceiling.
+        /// </summary>
+        private void CeilingCheck()
+        {
+            if ((_controller.collisionFlags & CollisionFlags.Above) != 0 && Velocity.y > 0)
+                Velocity.y = 0;
         }
 
         /// <summary>
@@ -239,9 +288,7 @@ namespace FPController
         /// Checks if player is standing on a slope.
         /// First uses a Raycast directly downward to detect ground. But if player is near an edge and Raycast fails, then uses a SphereCast.
         /// SphereCast manages to detect that edge (stairs commonly). If player starts sliding and SphereCast was used that frame, it will not go back to Raycast until they stop
-        /// 
-        /// !!! Need to check this later !!!
-        /// There might be an issue with stairs
+        /// Steep edges low enough to step over are ignored, see IsStepEdge()
         /// </summary>
         private void SlopeCheck()
         {
@@ -272,7 +319,7 @@ namespace FPController
         {
             _slopeHit = hit;
             var angle = Vector3.Angle(hit.normal, Vector3.up);
-            if (angle > _controller.slopeLimit)     // If angle exceeds the limit (hit is a steep slope)
+            if (angle > _controller.slopeLimit && !IsStepEdge(hit))     // If angle exceeds the limit and it's not a small edge (hit is a steep slope)
             {
                 _isOnSlope = true;
                 _isSliding = true;
@@ -283,6 +330,19 @@ namespace FPController
                 _isSliding = false;         // is not sliding
                 _didSphereCast = false;     // do not use SphereCast on next frame
             }
+        }
+
+        /// <summary>
+        /// Checks if a steep hit is only a small edge the player can step over (the edge of a step, a lip where a ramp meets a platform).
+        /// Casts a ray down a bit further up the steep surface, starting _controller.stepOffset above the hit point.
+        /// If it finds walkable ground, then the steep surface is lower than the step offset, so it's a step and not a slope.
+        /// </summary>
+        private bool IsStepEdge(RaycastHit hit)
+        {
+            Vector3 upSlopeDirection = -new Vector3(hit.normal.x, 0, hit.normal.z).normalized;                  // Horizontal direction going up the steep surface
+            Vector3 probeOrigin = hit.point + upSlopeDirection * 0.1f + Vector3.up * _controller.stepOffset;    // 0.1m further up the steep surface, at step offset height
+            return Physics.Raycast(probeOrigin, Vector3.down, out var stepHit, _controller.stepOffset, ~LayerMask.GetMask("Player"), QueryTriggerInteraction.Ignore)
+                && Vector3.Angle(stepHit.normal, Vector3.up) <= _controller.slopeLimit;
         }
         #endregion
     }
